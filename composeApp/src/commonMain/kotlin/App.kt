@@ -211,12 +211,6 @@ fun DrawCurNum(
     ){
 
     if(curNum.value.numBox != NumBox.NUM_BLANK){
-        DrawNumBox(
-            numBox = curNum.value.numBox,
-            rowWidth = rowWidth,
-            x = curNum.value.x,
-            y = curNum.value.y
-        )
 
         DrawNumBox(
             numBox = curNum.value.numBox,
@@ -224,6 +218,13 @@ fun DrawCurNum(
             x = curNum.value.x,
             y = curNum.value.targetY.toFloat(),
             alpha = 0.2f
+        )
+
+        DrawNumBox(
+            numBox = curNum.value.numBox,
+            rowWidth = rowWidth,
+            x = curNum.value.x,
+            y = curNum.value.y
         )
     }
 }

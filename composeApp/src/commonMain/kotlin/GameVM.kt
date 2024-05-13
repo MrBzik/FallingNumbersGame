@@ -233,7 +233,6 @@ class GameVM : ViewModel() {
                         }
                     }
 
-
                     return 1
                 }
             }
@@ -263,7 +262,10 @@ class GameVM : ViewModel() {
                     targetY = y.toFloat()
                 )
             )
+
             _fallingBoxes.value = fallingBoxes
+
+            _mergingBoxes.value = boxesToMerge
 
             _board.update {
                 it.clone().also { board ->
@@ -271,8 +273,6 @@ class GameVM : ViewModel() {
                     maxDepth[x]+=1
                 }
             }
-
-            _mergingBoxes.value = boxesToMerge
 
         }
 
