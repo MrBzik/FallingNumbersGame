@@ -21,6 +21,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.flow.collectLatest
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
@@ -56,16 +58,61 @@ fun App() {
 
         var boardWidth : Dp = 0.dp
 
+        var count = 0
 
 
         LaunchedEffect(Unit){
 
             while (true){
                 withFrameMillis {
+
                     gameVM.onNewFrame(it)
+
+//                    if(gameVM.isToSkipFrame){
+//                        gameVM.isToSkipFrame = false
+//                    } else {
+//                        gameVM.onNewFrame(it)
+//                    }
+
+//                    if(count % 2 == 0){
+//
+//                    }
+//                    count ++
                 }
             }
         }
+
+//        LaunchedEffect(Unit){
+//            gameVM.fallingBoxes.collectLatest {
+//                println("falling: ${it.size}")
+//            }
+//
+//        }
+//        LaunchedEffect(Unit){
+//            gameVM.mergingBoxes.collectLatest {
+//                println("merging: ${it.size}")
+//            }
+//        }
+//
+        LaunchedEffect(Unit){
+            gameVM.board.collectLatest {
+
+                println("COLLECTING + ${System.currentTimeMillis()}")
+
+
+//                it.forEach { a ->
+//
+//                    a.forEach {
+//
+//                        print(" " + it?.number.toString() + " ")
+//
+//                    }
+//                    println()
+//                }
+
+            }
+        }
+
 
         fun onUserInput(offset : Offset, isTap: Boolean){
             val x = offset.x / density
@@ -133,13 +180,14 @@ fun App() {
             )
 
 
-            DrawBoard(
-                board = board,
+            DrawFallingBoxes(
+                fallingBoxes = fallingBoxes,
                 rowWidth = rowWidth
             )
 
-            DrawFallingBoxes(
-                fallingBoxes = fallingBoxes,
+
+            DrawBoard(
+                board = board,
                 rowWidth = rowWidth
             )
         }

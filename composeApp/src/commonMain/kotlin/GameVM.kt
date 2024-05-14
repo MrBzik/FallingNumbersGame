@@ -1,7 +1,11 @@
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.util.Stack
 
 class GameVM : ViewModel() {
@@ -15,12 +19,11 @@ class GameVM : ViewModel() {
 
     private var gameSpeed = 0.5f
 
-    private val _board : MutableStateFlow<Array<Array<NumBox?>>> = MutableStateFlow(
-        Array(BOARD_HEIGHT){
-            Array(BOARD_WIDTH) { null }
-        }
-    )
+    private val gameBoard : Array<Array<NumBox?>> = Array(BOARD_HEIGHT){ Array(BOARD_WIDTH) { null } }
 
+    private val _board : MutableStateFlow<Array<Array<NumBox?>>> = MutableStateFlow(
+        gameBoard
+    )
     val board = _board.asStateFlow()
 
     private val _fallingBoxes : MutableStateFlow<List<FallingBox>> = MutableStateFlow(emptyList())
@@ -33,6 +36,8 @@ class GameVM : ViewModel() {
 
     private val _curNumBox : MutableStateFlow<FallingBox> = MutableStateFlow(getRandomBox())
     val curNumBox = _curNumBox.asStateFlow()
+
+
 
     fun onNewFrame(frameMills: Long){
 
@@ -89,16 +94,28 @@ class GameVM : ViewModel() {
         val xIdx = box.x.toInt()
         val targetY = box.targetY
         if(yPos >= targetY){
-            _board.update { board ->
-                board.clone().also { clone ->
-                    clone[targetY][xIdx] = box.numBox
-                }
-            }
+            gameBoard[targetY][xIdx] = box.numBox
+            _board.value = getBoardCopy()
             maxDepth[xIdx] = targetY - 1
             checkMatchesStack.push(BoxIdx(row = targetY, col = xIdx))
             return true
         }
         return false
+    }
+
+    private fun getBoardCopy() : Array<Array<NumBox?>>{
+
+        val clone = Array<Array<NumBox?>>(BOARD_HEIGHT){
+            Array(BOARD_WIDTH){
+                null
+            }
+        }
+
+        gameBoard.forEachIndexed { y, numBoxes ->
+            clone[y] = gameBoard[y].clone()
+        }
+
+        return clone
     }
 
 
@@ -193,13 +210,13 @@ class GameVM : ViewModel() {
 
     private fun onNumberDropped(y: Int, x: Int) : Boolean {
 
-        val numBox = _board.value[y][x] ?: return false
+        val numBox = gameBoard[y][x] ?: return false
 
         val boxesToMerge = mutableListOf<MergingBox>()
         val fallingBoxes = mutableListOf<FallingBox>()
 
         fun isMatch(yIdx: Int, xIdx: Int, vector: Vector) : Int {
-            _board.value[yIdx][xIdx]?.let { match ->
+            gameBoard[yIdx][xIdx]?.let { match ->
                 if(match.number == numBox.number){
                     boxesToMerge.add(
                         MergingBox(
@@ -210,7 +227,7 @@ class GameVM : ViewModel() {
                         targetX = x.toFloat(),
                         targetY = y.toFloat()
                     ))
-                    _board.value[yIdx][xIdx] = null
+                    gameBoard[yIdx][xIdx] = null
                     maxDepth[xIdx] = yIdx - 1
 
 
@@ -220,9 +237,9 @@ class GameVM : ViewModel() {
 
                         for(i in yIdx - 1 downTo 0){
 
-                            val numB = _board.value[i][xIdx] ?: break
+                            val numB = gameBoard[i][xIdx] ?: break
 
-                            _board.value[i][xIdx] = null
+                            gameBoard[i][xIdx] = null
 
                             fallingBoxes.add(FallingBox(
                                 numBox = numB,
@@ -267,19 +284,17 @@ class GameVM : ViewModel() {
 
             _mergingBoxes.value = boxesToMerge
 
-            _board.update {
-                it.clone().also { board ->
-                    board[y][x] = null
-                    maxDepth[x]+=1
-                }
-            }
+            gameBoard[y][x] = null
+            maxDepth[x] +=1
+
+            _board.value = getBoardCopy()
 
         }
+
 
         return matches > 0
 
     }
-
 
 
     fun onUserBoardInput(posX: Int, isTap : Boolean){
