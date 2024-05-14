@@ -33,6 +33,7 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.viewmodel)
             implementation(libs.androidx.viewmodel.compose)
+            implementation(libs.androidx.lifecycle.compose)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)

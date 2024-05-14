@@ -1,3 +1,7 @@
+import androidx.compose.animation.Animatable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector4D
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -17,6 +21,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -35,6 +40,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.flow.collectLatest
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -42,7 +50,6 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 @Preview
 fun App() {
     MaterialTheme {
-
 
         val gameVM = GameVM()
 
@@ -54,12 +61,13 @@ fun App() {
 
         val board = gameVM.board.collectAsState()
 
+        val mergeTargetBox = gameVM.mergeTargetBox.collectAsState()
+
         val density = LocalDensity.current.density
 
         var boardWidth : Dp = 0.dp
 
-        var count = 0
-
+        val colorState = mutableStateOf<Animatable<Color, AnimationVector4D>?>(null)
 
         LaunchedEffect(Unit){
 
@@ -68,48 +76,25 @@ fun App() {
 
                     gameVM.onNewFrame(it)
 
-//                    if(gameVM.isToSkipFrame){
-//                        gameVM.isToSkipFrame = false
-//                    } else {
-//                        gameVM.onNewFrame(it)
-//                    }
-
-//                    if(count % 2 == 0){
-//
-//                    }
-//                    count ++
                 }
             }
         }
 
-//        LaunchedEffect(Unit){
-//            gameVM.fallingBoxes.collectLatest {
-//                println("falling: ${it.size}")
-//            }
-//
-//        }
-//        LaunchedEffect(Unit){
-//            gameVM.mergingBoxes.collectLatest {
-//                println("merging: ${it.size}")
-//            }
-//        }
-//
         LaunchedEffect(Unit){
-            gameVM.board.collectLatest {
 
+            gameVM.mergingColor.collectLatest {
 
-//                it.forEach { a ->
-//
-//                    a.forEach {
-//
-//                        print(" " + it?.number.toString() + " ")
-//
-//                    }
-//                    println()
-//                }
+                it?.let {
 
+                    colorState.value = Animatable(it.startColor)
+
+                    colorState.value?.animateTo(it.targetColor, animationSpec = tween(1000 / ANIM_SPEED))
+
+                }
             }
         }
+
+
 
 
         fun onUserInput(offset : Offset, isTap: Boolean){
@@ -183,12 +168,41 @@ fun App() {
                 rowWidth = rowWidth
             )
 
-
             DrawBoard(
                 board = board,
                 rowWidth = rowWidth
             )
+
+            DrawMergeTargetBox(
+                box = mergeTargetBox,
+                rowWidth = rowWidth
+            )
         }
+    }
+}
+
+
+@Composable
+fun DrawMergeTargetBox(
+    box: State<MergingTargetBox?>,
+    rowWidth: Dp
+){
+
+    box.value?.let { b ->
+
+        val color = remember { Animatable(b.startBox.color) }
+
+        LaunchedEffect(Unit){
+            color.animateTo(b.targetBox.color, animationSpec = tween(1000 / ANIM_SPEED))
+        }
+
+        DrawNumBox(
+            numBox = b.startBox,
+            rowWidth = rowWidth,
+            x = b.x,
+            y = b.y,
+            animColor = color.value
+        )
     }
 }
 
@@ -198,7 +212,6 @@ fun DrawMergingBoxes(
     mergingBoxes: State<List<MergingBox>>,
     rowWidth: Dp
 ){
-
     mergingBoxes.value.forEach {
         DrawNumBox(
             numBox = it.numBox,
@@ -282,7 +295,8 @@ fun DrawNumBox(
     x: Float,
     y: Float,
     rowWidth: Dp,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    animColor : Color? = null
 ){
     Box(modifier = Modifier.offset(
         x = (x * rowWidth.value).dp,
@@ -291,7 +305,7 @@ fun DrawNumBox(
         .size(rowWidth)
         .padding((rowWidth.value * 0.05).dp)
         .clip(RoundedCornerShape((rowWidth.value * 0.1).dp))
-        .background(numBox.color.copy(alpha = alpha)),
+        .background(animColor?: numBox.color.copy(alpha = alpha)),
         contentAlignment = Alignment.Center
     ){
         Text(text = numBox.number.toString(), fontSize = rowWidth.value.sp / 2, color = Color.White.copy(alpha = alpha))

@@ -1,8 +1,17 @@
-import androidx.compose.ui.util.fastForEachReversed
+import androidx.compose.animation.Animatable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector4D
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.util.Stack
 
 class GameVM : ViewModel() {
@@ -10,9 +19,6 @@ class GameVM : ViewModel() {
     private var gameState = GameState.PLAYING
     private var maxNumber = 32
     private var lastFrame : Long? = null
-    private var maxDepth = IntArray(BOARD_WIDTH){
-        BOARD_HEIGHT - 1
-    }
 
     private var gameSpeed = 0.5f
 
@@ -34,7 +40,10 @@ class GameVM : ViewModel() {
     private val _curNumBox : MutableStateFlow<FallingBox> = MutableStateFlow(getRandomBox())
     val curNumBox = _curNumBox.asStateFlow()
 
+    val mergingColor : MutableStateFlow<MergingColor?> = MutableStateFlow(null)
 
+    private val _mergeTargetBox : MutableStateFlow<MergingTargetBox?> = MutableStateFlow(null)
+    val mergeTargetBox = _mergeTargetBox.asStateFlow()
 
     fun onNewFrame(frameMills: Long){
 
@@ -58,7 +67,7 @@ class GameVM : ViewModel() {
                 }
                 GameState.FALLING -> {
                     val update = mutableListOf<FallingBox>()
-                    _fallingBoxes.value.fastForEachReversed {
+                    _fallingBoxes.value.forEach {
                         val yPos = it.y + delta * FALL_SPEED
                         val isDropped = isBoxDroppedOnBoard(it, yPos)
                         if(!isDropped) update.add(it.copy(y = yPos))
@@ -93,7 +102,6 @@ class GameVM : ViewModel() {
         if(yPos >= targetY){
             gameBoard[targetY][xIdx] = box.numBox
             _board.value = getBoardCopy()
-            maxDepth[xIdx] = targetY - 1
             checkMatchesStack.push(BoxIdx(row = targetY, col = xIdx))
             return true
         }
@@ -164,6 +172,8 @@ class GameVM : ViewModel() {
 
     private fun passMergedBoxForward(){
 
+        println("end: ${System.currentTimeMillis()}")
+
         val multiplier = _mergingBoxes.value.size - 1
         _mergingBoxes.value.first().apply {
             var sum = numBox.number
@@ -194,10 +204,9 @@ class GameVM : ViewModel() {
 
             if(gameBoard[row][col] != null){
                 depth --
-            }else {
+            } else {
                 break
             }
-
         }
         return depth
 
@@ -219,6 +228,7 @@ class GameVM : ViewModel() {
             val isMatchFound = onNumberDropped(check.row, check.col)
 
             if(isMatchFound) {
+                println("str: ${System.currentTimeMillis()}")
                 gameState = GameState.MERGING
                 break
             }
@@ -230,13 +240,14 @@ class GameVM : ViewModel() {
     private fun onNumberDropped(y: Int, x: Int) : Boolean {
 
         val numBox = gameBoard[y][x] ?: return false
-
         val boxesToMerge = mutableListOf<MergingBox>()
         val fallingBoxes = mutableListOf<FallingBox>()
+        var isMatchesFound = false
 
-        fun isMatch(yIdx: Int, xIdx: Int, vector: Vector) : Int {
+        fun isMatch(yIdx: Int, xIdx: Int, vector: Vector)  {
             gameBoard[yIdx][xIdx]?.let { match ->
                 if(match.number == numBox.number){
+                    isMatchesFound = true
                     boxesToMerge.add(
                         MergingBox(
                         numBox = match,
@@ -247,48 +258,41 @@ class GameVM : ViewModel() {
                         targetY = y.toFloat()
                     ))
                     gameBoard[yIdx][xIdx] = null
-                    maxDepth[xIdx] = yIdx - 1
 
+                    val startIdx = if(vector == Vector.UP) yIdx - 2 else yIdx - 1
 
-                    if(vector == Vector.LEFT || vector == Vector.RIGHT){
+                    for(i in startIdx downTo 0){
 
-                        maxDepth[xIdx] ++
+                        val numB = gameBoard[i][xIdx] ?: break
 
-                        for(i in yIdx - 1 downTo 0){
+                        gameBoard[i][xIdx] = null
 
-                            val numB = gameBoard[i][xIdx] ?: break
-
-                            gameBoard[i][xIdx] = null
-
-                            fallingBoxes.add(FallingBox(
-                                numBox = numB,
-                                x = xIdx.toFloat(),
-                                y = i.toFloat(),
-                                targetY = i + 1
-                            ))
-                        }
+                        fallingBoxes.add(FallingBox(
+                            numBox = numB,
+                            x = xIdx.toFloat(),
+                            y = i.toFloat(),
+                            targetY = i + 1
+                        ))
                     }
-
-
-                    return 1
                 }
             }
-            return 0
         }
 
-        var matches = 0
 
         if(x > 0){
-            matches += isMatch(y, x - 1, Vector.RIGHT)
+            isMatch(y, x - 1, Vector.RIGHT)
         }
         if(x < BOARD_WIDTH - 1){
-            matches += isMatch(y, x + 1, Vector.LEFT)
+            isMatch(y, x + 1, Vector.LEFT)
         }
         if(y < BOARD_HEIGHT - 1){
-            matches += isMatch(y + 1, x, Vector.UP)
+            isMatch(y + 1, x, Vector.UP)
         }
 
-        if(matches > 0){
+        if(isMatchesFound){
+
+            gameBoard[y][x] = null
+
             boxesToMerge.add(
                 MergingBox(
                     numBox = numBox,
@@ -300,38 +304,36 @@ class GameVM : ViewModel() {
                 )
             )
 
-            for(i in y - 1 downTo  0){
-
-                val numB = gameBoard[i][x] ?: break
-
-                gameBoard[i][x] = null
-
-                fallingBoxes.add(FallingBox(
-                    numBox = numB,
-                    x = x.toFloat(),
-                    y = i.toFloat(),
-                    targetY = i
-                ))
-
-
-            }
-
-
+            startMergingColorAnim(boxesToMerge)
 
             _fallingBoxes.value = fallingBoxes
 
             _mergingBoxes.value = boxesToMerge
-
-            gameBoard[y][x] = null
-            maxDepth[x] +=1
 
             _board.value = getBoardCopy()
 
         }
 
 
-        return matches > 0
+        return isMatchesFound
 
+    }
+
+
+    private fun startMergingColorAnim(matches: List<MergingBox>){
+
+        val multiplier = matches.size - 1
+        var num = matches.first().numBox.number
+        repeat(multiplier){
+            num *= 2
+        }
+        val newColor = NumBox.entries.find {
+            it.number == num
+        }?.color
+
+        newColor?.let {
+            mergingColor.value = MergingColor(matches.first().numBox.color, it)
+        }
     }
 
 
@@ -344,7 +346,7 @@ class GameVM : ViewModel() {
             return
         }
 
-        val updatedBox = _curNumBox.value.copy(x = posX.toFloat(), targetY = maxDepth[posX])
+        val updatedBox = _curNumBox.value.copy(x = posX.toFloat(), targetY = getDepth(posX))
 
         if(isTap){
             gameState = GameState.FALLING
@@ -383,7 +385,7 @@ class GameVM : ViewModel() {
         }.random()
 
         val x = BOARD_WIDTH / 2
-        val targetY = maxDepth[x]
+        val targetY = getDepth(x)
 
         return FallingBox(
             numBox = numBox,
@@ -393,6 +395,4 @@ class GameVM : ViewModel() {
             )
 
     }
-
-
 }
