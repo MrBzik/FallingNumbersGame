@@ -1,17 +1,7 @@
-import androidx.compose.animation.Animatable
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector4D
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.util.Stack
 
 class GameVM : ViewModel() {
@@ -39,8 +29,6 @@ class GameVM : ViewModel() {
 
     private val _curNumBox : MutableStateFlow<FallingBox> = MutableStateFlow(getRandomBox())
     val curNumBox = _curNumBox.asStateFlow()
-
-    val mergingColor : MutableStateFlow<MergingColor?> = MutableStateFlow(null)
 
     private val _mergeTargetBox : MutableStateFlow<MergingTargetBox?> = MutableStateFlow(null)
     val mergeTargetBox = _mergeTargetBox.asStateFlow()
@@ -135,7 +123,6 @@ class GameVM : ViewModel() {
             boxes.forEach { box ->
                 var x = box.x
                 var y = box.y
-                var isTarget = false
                 when(box.vector){
                     Vector.UP -> {
                         y = (y - (delta * ANIM_SPEED)).coerceAtLeast(box.targetY)
@@ -146,16 +133,9 @@ class GameVM : ViewModel() {
                     Vector.RIGHT -> {
                         x = (x + (delta * ANIM_SPEED)).coerceAtMost(box.targetX)
                     }
-                    Vector.TARGET -> {
-                        isTarget = true
-                    }
                 }
-                if(isTarget){
-                    update.add(box)
-                } else {
-                    isMerged = x == box.targetX && y == box.targetY
-                    update.add(box.copy(x = x, y = y))
-                }
+                isMerged = x == box.targetX && y == box.targetY
+                update.add(box.copy(x = x, y = y))
             }
 
             if(isMerged){
@@ -174,25 +154,22 @@ class GameVM : ViewModel() {
 
         println("end: ${System.currentTimeMillis()}")
 
-        val multiplier = _mergingBoxes.value.size - 1
-        _mergingBoxes.value.first().apply {
-            var sum = numBox.number
-            repeat(multiplier){
-                sum*=2
-            }
-            NumBox.entries.find {
-                it.number == sum
-            }?.let { newNumber ->
+        _mergeTargetBox.update {
 
-                _fallingBoxes.update {
-                    it + FallingBox(
-                        numBox = newNumber,
-                        x = targetX,
-                        y = targetY,
-                        targetY = getDepth(targetX.toInt())
+            it?.let { target ->
+
+                _fallingBoxes.update { fallingBoxes ->
+
+                    fallingBoxes + FallingBox(
+                        numBox = target.targetBox,
+                        x = target.x,
+                        y = target.y,
+                        targetY = getDepth(target.x.toInt())
                     )
                 }
             }
+
+            null
         }
     }
 
@@ -293,18 +270,7 @@ class GameVM : ViewModel() {
 
             gameBoard[y][x] = null
 
-            boxesToMerge.add(
-                MergingBox(
-                    numBox = numBox,
-                    x = x.toFloat(),
-                    y = y.toFloat(),
-                    vector = Vector.TARGET,
-                    targetX = x.toFloat(),
-                    targetY = y.toFloat()
-                )
-            )
-
-            startMergingColorAnim(boxesToMerge)
+            sendMergingTargetBox(boxesToMerge)
 
             _fallingBoxes.value = fallingBoxes
 
@@ -320,20 +286,26 @@ class GameVM : ViewModel() {
     }
 
 
-    private fun startMergingColorAnim(matches: List<MergingBox>){
+    private fun sendMergingTargetBox(matches: List<MergingBox>){
 
-        val multiplier = matches.size - 1
+        val multiplier = matches.size
         var num = matches.first().numBox.number
         repeat(multiplier){
             num *= 2
         }
-        val newColor = NumBox.entries.find {
+        val newNumBox = NumBox.entries.find {
             it.number == num
-        }?.color
+        } ?: return
 
-        newColor?.let {
-            mergingColor.value = MergingColor(matches.first().numBox.color, it)
-        }
+        val targetBox = MergingTargetBox(
+            startBox =  matches.first().numBox,
+            x = matches.first().targetX,
+            y = matches.first().targetY,
+            targetBox = newNumBox
+        )
+
+        _mergeTargetBox.value = targetBox
+
     }
 
 

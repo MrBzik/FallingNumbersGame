@@ -1,7 +1,13 @@
 import androidx.compose.animation.Animatable
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector4D
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.with
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -25,9 +31,11 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,8 +75,6 @@ fun App() {
 
         var boardWidth : Dp = 0.dp
 
-        val colorState = mutableStateOf<Animatable<Color, AnimationVector4D>?>(null)
-
         LaunchedEffect(Unit){
 
             while (true){
@@ -79,21 +85,6 @@ fun App() {
                 }
             }
         }
-
-        LaunchedEffect(Unit){
-
-            gameVM.mergingColor.collectLatest {
-
-                it?.let {
-
-                    colorState.value = Animatable(it.startColor)
-
-                    colorState.value?.animateTo(it.targetColor, animationSpec = tween(1000 / ANIM_SPEED))
-
-                }
-            }
-        }
-
 
 
 
@@ -182,6 +173,7 @@ fun App() {
 }
 
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun DrawMergeTargetBox(
     box: State<MergingTargetBox?>,
@@ -192,17 +184,34 @@ fun DrawMergeTargetBox(
 
         val color = remember { Animatable(b.startBox.color) }
 
+        val animSpeed = remember { 1000 / ANIM_SPEED / 2 }
+
         LaunchedEffect(Unit){
             color.animateTo(b.targetBox.color, animationSpec = tween(1000 / ANIM_SPEED))
         }
 
-        DrawNumBox(
-            numBox = b.startBox,
-            rowWidth = rowWidth,
-            x = b.x,
-            y = b.y,
-            animColor = color.value
+        var count by remember { mutableStateOf(b.startBox.number)}
+
+        Box(modifier = Modifier.offset(
+            x = (b.x * rowWidth.value).dp,
+            y = (b.y * rowWidth.value).dp
         )
+            .size(rowWidth)
+            .padding((rowWidth.value * 0.05).dp)
+            .clip(RoundedCornerShape((rowWidth.value * 0.1).dp))
+            .background(color.value),
+            contentAlignment = Alignment.Center
+        ){
+            AnimatedContent(targetState = count, transitionSpec = {
+                scaleIn(animationSpec = tween(animSpeed)) with scaleOut(animationSpec = tween(animSpeed))
+            }){ number ->
+
+                LaunchedEffect(Unit){
+                    count = b.targetBox.number
+                }
+                Text(text = number.toString(), fontSize = rowWidth.value.sp / 2, color = Color.White.copy())
+            }
+        }
     }
 }
 
@@ -295,8 +304,7 @@ fun DrawNumBox(
     x: Float,
     y: Float,
     rowWidth: Dp,
-    alpha: Float = 1f,
-    animColor : Color? = null
+    alpha: Float = 1f
 ){
     Box(modifier = Modifier.offset(
         x = (x * rowWidth.value).dp,
@@ -305,7 +313,7 @@ fun DrawNumBox(
         .size(rowWidth)
         .padding((rowWidth.value * 0.05).dp)
         .clip(RoundedCornerShape((rowWidth.value * 0.1).dp))
-        .background(animColor?: numBox.color.copy(alpha = alpha)),
+        .background(numBox.color.copy(alpha = alpha)),
         contentAlignment = Alignment.Center
     ){
         Text(text = numBox.number.toString(), fontSize = rowWidth.value.sp / 2, color = Color.White.copy(alpha = alpha))

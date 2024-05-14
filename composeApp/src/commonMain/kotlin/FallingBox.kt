@@ -6,7 +6,7 @@ data class MergingBox(val numBox: NumBox, val x: Float, val y: Float, val vector
 }
 
 enum class Vector {
-    UP, LEFT, RIGHT, TARGET
+    UP, LEFT, RIGHT
 }
 
 
