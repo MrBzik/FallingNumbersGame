@@ -1,11 +1,8 @@
+import androidx.compose.ui.util.fastForEachReversed
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.util.Stack
 
 class GameVM : ViewModel() {
@@ -61,7 +58,7 @@ class GameVM : ViewModel() {
                 }
                 GameState.FALLING -> {
                     val update = mutableListOf<FallingBox>()
-                    _fallingBoxes.value.forEach {
+                    _fallingBoxes.value.fastForEachReversed {
                         val yPos = it.y + delta * FALL_SPEED
                         val isDropped = isBoxDroppedOnBoard(it, yPos)
                         if(!isDropped) update.add(it.copy(y = yPos))
@@ -178,10 +175,32 @@ class GameVM : ViewModel() {
             }?.let { newNumber ->
 
                 _fallingBoxes.update {
-                    it + FallingBox(newNumber, targetX, targetY, maxDepth[targetX.toInt()])
+                    it + FallingBox(
+                        numBox = newNumber,
+                        x = targetX,
+                        y = targetY,
+                        targetY = getDepth(targetX.toInt())
+                    )
                 }
             }
         }
+    }
+
+    private fun getDepth(col : Int) : Int {
+
+        var depth = BOARD_HEIGHT - 1
+
+        for(row in BOARD_HEIGHT - 1 downTo 0){
+
+            if(gameBoard[row][col] != null){
+                depth --
+            }else {
+                break
+            }
+
+        }
+        return depth
+
     }
 
 
@@ -250,6 +269,7 @@ class GameVM : ViewModel() {
                         }
                     }
 
+
                     return 1
                 }
             }
@@ -279,6 +299,24 @@ class GameVM : ViewModel() {
                     targetY = y.toFloat()
                 )
             )
+
+            for(i in y - 1 downTo  0){
+
+                val numB = gameBoard[i][x] ?: break
+
+                gameBoard[i][x] = null
+
+                fallingBoxes.add(FallingBox(
+                    numBox = numB,
+                    x = x.toFloat(),
+                    y = i.toFloat(),
+                    targetY = i
+                ))
+
+
+            }
+
+
 
             _fallingBoxes.value = fallingBoxes
 
@@ -326,10 +364,11 @@ class GameVM : ViewModel() {
         val oldX = _curNumBox.value.x.toInt()
 
         if(posX != oldX){
-            val curYPos = _curNumBox.value.y
+            val yIdx = _curNumBox.value.y.toInt() + 1
+
             val range = if (posX > oldX) oldX + 1 ..posX
             else oldX - 1 downTo posX
-            for(i in range) if(curYPos > maxDepth[i]) return false
+            for(i in range) if(gameBoard[yIdx][i] != null) return false
         }
 
         return true

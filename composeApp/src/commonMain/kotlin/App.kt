@@ -97,8 +97,6 @@ fun App() {
         LaunchedEffect(Unit){
             gameVM.board.collectLatest {
 
-                println("COLLECTING + ${System.currentTimeMillis()}")
-
 
 //                it.forEach { a ->
 //
@@ -234,7 +232,7 @@ fun DrawBoard(
     rowWidth: Dp
 ){
 
-    println("BOARD DRAWING")
+//    println("BOARD DRAWING")
 
     board.value.forEachIndexed { y, numBoxes ->
         numBoxes.forEachIndexed { x, numBox ->
