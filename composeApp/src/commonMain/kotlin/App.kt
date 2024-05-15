@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,16 +50,19 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -141,6 +145,14 @@ fun App() {
 
 
         Column (modifier = Modifier.fillMaxSize()) {
+
+
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(Color.DarkGray)
+                .zIndex(666f)
+            )
 
             BoxWithConstraints(
                 modifier = Modifier
@@ -265,11 +277,9 @@ fun App() {
             }
 
 
-            Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color.White))
+            Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color.DarkGray))
 
         }
-
-
     }
 }
 
@@ -448,19 +458,22 @@ fun DrawCurNum(
 
     if(curNum.value.numBox != NumBox.NUM_BLANK){
 
-        DrawNumBox(
-            numBox = curNum.value.numBox,
-            rowWidth = rowWidth,
-            x = curNum.value.x,
-            y = curNum.value.targetY.toFloat(),
-            alpha = 0.2f
-        )
+        if(curNum.value.scale == 1f){
+            DrawNumBox(
+                numBox = curNum.value.numBox,
+                rowWidth = rowWidth,
+                x = curNum.value.x,
+                y = curNum.value.targetY.toFloat(),
+                alpha = 0.2f
+            )
+        }
 
         DrawNumBox(
             numBox = curNum.value.numBox,
             rowWidth = rowWidth,
             x = curNum.value.x,
-            y = curNum.value.y
+            y = curNum.value.y,
+            scale = curNum.value.scale
         )
     }
 }
@@ -472,7 +485,8 @@ fun DrawNumBox(
     x: Float,
     y: Float,
     rowWidth: Dp,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    scale : Float = 1f
 ){
     Box(modifier = Modifier.offset(
         x = (x * rowWidth.value).dp,
@@ -481,6 +495,7 @@ fun DrawNumBox(
         .size(rowWidth)
         .padding((rowWidth * 0.05f))
         .clip(RoundedCornerShape((rowWidth * 0.1f)))
+        .scale(scale)
 //        .border(width = (rowWidth * 0.03f), color = numBox.border.copy(alpha = alpha))
         .background(numBox.color.copy(alpha = alpha)),
         contentAlignment = Alignment.Center

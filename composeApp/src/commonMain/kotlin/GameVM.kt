@@ -52,15 +52,20 @@ class GameVM : ViewModel() {
             when(gameState){
                 GameState.PLAYING -> {
                     _curNumBox.update {
-                        val yPos = it.y + delta * gameSpeed
-                        val isDropped = isBoxDroppedOnBoard(it, yPos)
-                        if(isDropped){
-                            gameState = GameState.CHECKING
-                            lastColumn = it.x.toInt()
-                            it.copy(numBox = NumBox.NUM_BLANK)
+                        if(it.scale < 1f){
+                            it.copy(scale = (it.scale + delta * 8).coerceAtMost(1f))
                         }
                         else {
-                            it.copy(y = yPos)
+                            val yPos = it.y + delta * gameSpeed
+                            val isDropped = isBoxDroppedOnBoard(it, yPos)
+                            if(isDropped){
+                                gameState = GameState.CHECKING
+                                lastColumn = it.x.toInt()
+                                it.copy(numBox = NumBox.NUM_BLANK)
+                            }
+                            else {
+                                it.copy(y = yPos)
+                            }
                         }
                     }
                 }
@@ -387,7 +392,8 @@ class GameVM : ViewModel() {
             numBox = numBox,
             x = x.toFloat(),
             y = 0f,
-            targetY = targetY
+            targetY = targetY,
+            scale = 0f
             )
 
     }
