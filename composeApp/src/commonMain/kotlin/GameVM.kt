@@ -1,7 +1,12 @@
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.util.Stack
 
 class GameVM : ViewModel() {
@@ -11,6 +16,8 @@ class GameVM : ViewModel() {
     private var lastFrame : Long? = null
 
     private var gameSpeed = 0.5f
+
+    private var lastColumn = BOARD_WIDTH / 2
 
     private val gameBoard : Array<Array<NumBox?>> = Array(BOARD_HEIGHT){ Array(BOARD_WIDTH) { null } }
 
@@ -33,6 +40,9 @@ class GameVM : ViewModel() {
     private val _mergeTargetBox : MutableStateFlow<MergingTargetBox?> = MutableStateFlow(null)
     val mergeTargetBox = _mergeTargetBox.asStateFlow()
 
+    private val _userInputEffects = Channel<UserInputEffects>()
+    val userInputEffects = _userInputEffects.receiveAsFlow()
+
     fun onNewFrame(frameMills: Long){
 
         lastFrame?.let {  last ->
@@ -46,6 +56,7 @@ class GameVM : ViewModel() {
                         val isDropped = isBoxDroppedOnBoard(it, yPos)
                         if(isDropped){
                             gameState = GameState.CHECKING
+                            lastColumn = it.x.toInt()
                             it.copy(numBox = NumBox.NUM_BLANK)
                         }
                         else {
@@ -314,16 +325,29 @@ class GameVM : ViewModel() {
         if(gameState != GameState.PLAYING) return
 
         if(!isValidInput(posX)){
-            // Notify User TODO
+            viewModelScope.launch {
+                _userInputEffects.send(UserInputEffects.InvalidInput)
+            }
+
             return
         }
 
         val updatedBox = _curNumBox.value.copy(x = posX.toFloat(), targetY = getDepth(posX))
 
         if(isTap){
+            viewModelScope.launch {
+                _userInputEffects.send(
+                    UserInputEffects.ClickHighlight(
+                        col = posX,
+                        color = _curNumBox.value.numBox.color,
+                        id = System.currentTimeMillis()
+                    )
+                )
+            }
             gameState = GameState.FALLING
             _fallingBoxes.value = listOf(updatedBox)
             _curNumBox.update {
+                lastColumn = posX
                 it.copy(numBox = NumBox.NUM_BLANK)
             }
         } else {
@@ -331,7 +355,7 @@ class GameVM : ViewModel() {
         }
     }
 
-    private fun isValidInput(posX: Int) : Boolean{
+    private fun isValidInput(posX: Int) : Boolean {
 
         if(posX < 0 || posX > BOARD_WIDTH - 1) return false
 
@@ -356,7 +380,7 @@ class GameVM : ViewModel() {
             it.number in 2..maxNumber
         }.random()
 
-        val x = BOARD_WIDTH / 2
+        val x = lastColumn
         val targetY = getDepth(x)
 
         return FallingBox(

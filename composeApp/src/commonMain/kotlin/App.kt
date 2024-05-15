@@ -1,30 +1,39 @@
 import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector4D
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.with
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -39,19 +48,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
@@ -75,6 +85,39 @@ fun App() {
 
         var boardWidth : Dp = 0.dp
 
+        val isInvalidInput = mutableStateOf(false)
+
+        val clickHighlight : MutableState<UserInputEffects.ClickHighlight?> = mutableStateOf(null)
+
+        val animFallDuration = remember { BOARD_HEIGHT * 1000 / FALL_SPEED }
+
+
+        LaunchedEffect(Unit){
+
+            var errorShowTime : Job? = null
+
+            gameVM.userInputEffects.collectLatest {
+
+                when(it){
+                    is UserInputEffects.ClickHighlight -> {
+                        clickHighlight.value = it
+                    }
+
+                    UserInputEffects.InvalidInput -> {
+                        isInvalidInput.value = true
+                        errorShowTime?.cancel()
+                        errorShowTime = launch {
+                            delay(300)
+                            isInvalidInput.value = false
+                        }
+                    }
+                }
+            }
+        }
+
+
+
+
         LaunchedEffect(Unit){
 
             while (true){
@@ -95,82 +138,205 @@ fun App() {
         }
 
 
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(BOARD_WIDTH / BOARD_HEIGHT.toFloat())
-        ) {
 
-            SideEffect {
-                boardWidth = maxWidth
-            }
+        Column (modifier = Modifier.fillMaxSize()) {
 
-            val rowWidth = maxWidth / BOARD_WIDTH
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(BOARD_WIDTH / BOARD_HEIGHT.toFloat())
+            ) {
 
-            Row (modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit){
-                detectTapGestures(onTap = {
-                    onUserInput(it, true)
-                })
-            }
-                .pointerInput(Unit){
-                    detectDragGestures { change, _ ->
-                        onUserInput(change.position, false)
+                SideEffect {
+                    boardWidth = maxWidth
+                }
+
+                val rowWidth = maxWidth / BOARD_WIDTH
+
+
+
+                Row (modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = rowWidth)
+                    .pointerInput(Unit){
+                        detectTapGestures(onTap = {
+                            onUserInput(it, true)
+                        })
+                    }
+                    .pointerInput(Unit){
+                        detectDragGestures { change, _ ->
+                            onUserInput(change.position, false)
+                        }
+                    }
+
+                ) {
+
+                    repeat(BOARD_WIDTH){
+
+                        val isEven = it % 2 == 0
+
+                        Box (modifier = Modifier
+                            .fillMaxHeight()
+                            .width(rowWidth)
+                            .background(color = if(isEven) BG_1 else BG_3)
+                        )
                     }
                 }
 
-            ) {
 
-                repeat(BOARD_WIDTH){
+                HighlightClicks(
+                    click = clickHighlight,
+                    rowWidth = rowWidth,
+                    maxHeight = maxHeight,
+                    animSpeed = animFallDuration
+                )
 
-                    val isEven = it % 2 == 0
 
-                    Box (modifier = Modifier
-                        .fillMaxHeight()
-                        .width(rowWidth)
-                        .background(color = if(isEven) Color.Gray else Color.LightGray)
-                    )
+                Row (
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(rowWidth)
+                        .background(Color.White)
+                ) {
+                    repeat(BOARD_WIDTH){
+
+                        val isEven = it % 2 == 0
+
+                        Box (modifier = Modifier
+                            .fillMaxHeight()
+                            .width(rowWidth)
+                            .padding((rowWidth * 0.05f))
+                            .clip(RoundedCornerShape(rowWidth * 0.1f))
+                            .background(color = if(isEven) BG_1 else BG_3),
+                        ) {
+
+                            Icon(
+                                Icons.Filled.ArrowDropDown,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                        }
+                    }
                 }
+
+
+
+                val count = remember { mutableIntStateOf(0) }
+
+                SideEffect {
+                    println(count.value)
+                    count.value ++
+                }
+
+
+
+                DrawMergingBoxes(
+                    mergingBoxes = mergingBoxes,
+                    rowWidth = rowWidth
+                )
+
+
+                DrawCurNum(
+                    curNum = curNum,
+                    rowWidth = rowWidth
+                )
+
+
+                DrawFallingBoxes(
+                    fallingBoxes = fallingBoxes,
+                    rowWidth = rowWidth
+                )
+
+                DrawBoard(
+                    board = board,
+                    rowWidth = rowWidth
+                )
+
+                DrawMergeTargetBox(
+                    box = mergeTargetBox,
+                    rowWidth = rowWidth
+                )
+
+                ShowInvalidInput(isInvalidInput)
+
             }
 
-            val count = remember { mutableIntStateOf(0) }
 
-            SideEffect {
-                println(count.value)
-                count.value ++
+            Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color.White))
+
+        }
+
+
+    }
+}
+
+
+@Composable
+fun HighlightClicks(
+    click : MutableState<UserInputEffects.ClickHighlight?>,
+    rowWidth: Dp,
+    maxHeight : Dp,
+    animSpeed: Int
+){
+    click.value?.let { cl ->
+
+        val isToShow = remember(cl) { MutableTransitionState(false).apply {
+            targetState = true
+        } }
+
+
+        AnimatedVisibility(
+            visibleState = isToShow,
+            enter = slideInVertically(animationSpec = tween(animSpeed, easing = LinearEasing), initialOffsetY = {
+                -it * 2
+            }),
+            exit = fadeOut(animationSpec = tween(0)),
+            modifier = Modifier.offset(x = rowWidth * cl.col, y = maxHeight)
+        ){
+
+            LaunchedEffect(cl){
+                delay(animSpeed.toLong())
+                isToShow.targetState = false
             }
 
-
-            DrawMergingBoxes(
-                mergingBoxes = mergingBoxes,
-                rowWidth = rowWidth
-            )
-
-
-            DrawCurNum(
-                curNum = curNum,
-                rowWidth = rowWidth
-            )
-
-
-            DrawFallingBoxes(
-                fallingBoxes = fallingBoxes,
-                rowWidth = rowWidth
-            )
-
-            DrawBoard(
-                board = board,
-                rowWidth = rowWidth
-            )
-
-            DrawMergeTargetBox(
-                box = mergeTargetBox,
-                rowWidth = rowWidth
+            Box(modifier = Modifier
+                .fillMaxHeight()
+                .width(rowWidth)
+                .background(brush = Brush.linearGradient(
+                    listOf(
+                        Color.Transparent, cl.color, cl.color, Color.Transparent
+                    )
+                ), shape = RectangleShape, alpha = 0.4f)
             )
         }
     }
 }
+
+
+
+@Composable
+fun ShowInvalidInput(
+    isInvalidInput: MutableState<Boolean>
+){
+
+    AnimatedVisibility(
+        visible = isInvalidInput.value,
+        enter = fadeIn(animationSpec = tween(300)),
+        exit = fadeOut(animationSpec = tween(400))
+    ){
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .border(width = 5.dp, brush = Brush.verticalGradient(
+                listOf(
+                    Color.Red, bronze, Color.Transparent
+                )
+            ), shape = RectangleShape)
+        )
+    }
+}
+
 
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -190,15 +356,16 @@ fun DrawMergeTargetBox(
             color.animateTo(b.targetBox.color, animationSpec = tween(1000 / ANIM_SPEED))
         }
 
-        var count by remember { mutableStateOf(b.startBox.number)}
+        var count by remember { mutableStateOf(b.startBox.label)}
 
         Box(modifier = Modifier.offset(
-            x = (b.x * rowWidth.value).dp,
-            y = (b.y * rowWidth.value).dp
+            x = (rowWidth * b.x),
+            y = (rowWidth * b.y)
         )
             .size(rowWidth)
-            .padding((rowWidth.value * 0.05).dp)
-            .clip(RoundedCornerShape((rowWidth.value * 0.1).dp))
+            .padding((rowWidth * 0.05f))
+            .clip(RoundedCornerShape((rowWidth * 0.1f)))
+            .border(width = (rowWidth * 0.03f), color = b.startBox.border)
             .background(color.value),
             contentAlignment = Alignment.Center
         ){
@@ -207,9 +374,9 @@ fun DrawMergeTargetBox(
             }){ number ->
 
                 LaunchedEffect(Unit){
-                    count = b.targetBox.number
+                    count = b.targetBox.label
                 }
-                Text(text = number.toString(), fontSize = rowWidth.value.sp / 2, color = Color.White.copy())
+                DrawNumberText(number, rowWidth)
             }
         }
     }
@@ -311,11 +478,21 @@ fun DrawNumBox(
         y = (y * rowWidth.value).dp
     )
         .size(rowWidth)
-        .padding((rowWidth.value * 0.05).dp)
-        .clip(RoundedCornerShape((rowWidth.value * 0.1).dp))
+        .padding((rowWidth * 0.05f))
+        .clip(RoundedCornerShape((rowWidth * 0.1f)))
+        .border(width = (rowWidth * 0.03f), color = numBox.border.copy(alpha = alpha))
         .background(numBox.color.copy(alpha = alpha)),
         contentAlignment = Alignment.Center
     ){
-        Text(text = numBox.number.toString(), fontSize = rowWidth.value.sp / 2, color = Color.White.copy(alpha = alpha))
+        DrawNumberText(numBox.label, rowWidth, alpha)
     }
+}
+
+@Composable
+fun DrawNumberText(num : String, rowWidth: Dp, alpha: Float = 1f){
+    Text(
+        text = num,
+        fontSize = rowWidth.value.sp / (num.length).coerceAtLeast(2),
+        color = Color.White.copy(alpha = alpha)
+    )
 }
