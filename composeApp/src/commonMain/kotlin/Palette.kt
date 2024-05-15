@@ -11,3 +11,30 @@ val BG_6 = Color(40,44,53)
 val BG_7 = Color(15,15,15)
 
 
+val BG_8 = Color(34, 40, 49)
+val BG_9 = Color(57, 62, 70)
+
+
+object BoxColors{
+
+    val PINK =  Color(243, 129, 129)
+    val LIGHT_BLUE =  Color(123, 201, 255)
+    val ORANGE =  Color(240, 138, 93)
+    val SUNSET =  Color(184, 59, 94)
+    val VIOLET =  Color(106, 44, 112)
+    val LIGHT_PURPLE =  Color(133, 118, 255)
+    val BLUE =  Color(63, 114, 175)
+    val TEAL =  Color(63, 193, 201)
+    val DARK_GREEN = Color(10, 104, 71)
+    val LIGHT_GREEN = Color(95, 141, 78)
+    val DARK_ORANGE = Color(0xffd9660a)
+
+
+
+}
+
+
+
+
+
+

@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -178,7 +179,7 @@ fun App() {
                         Box (modifier = Modifier
                             .fillMaxHeight()
                             .width(rowWidth)
-                            .background(color = if(isEven) BG_1 else BG_3)
+                            .background(color = if(isEven) BG_8 else BG_9)
                         )
                     }
                 }
@@ -196,7 +197,7 @@ fun App() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(rowWidth)
-                        .background(Color.White)
+                        .background(Color.DarkGray)
                 ) {
                     repeat(BOARD_WIDTH){
 
@@ -207,13 +208,13 @@ fun App() {
                             .width(rowWidth)
                             .padding((rowWidth * 0.05f))
                             .clip(RoundedCornerShape(rowWidth * 0.1f))
-                            .background(color = if(isEven) BG_1 else BG_3),
+                            .background(color = if(isEven) BG_6 else BG_7),
                         ) {
 
                             Icon(
                                 Icons.Filled.ArrowDropDown,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = Color.DarkGray,
                                 modifier = Modifier.fillMaxSize()
                             )
 
@@ -308,7 +309,7 @@ fun HighlightClicks(
                     listOf(
                         Color.Transparent, cl.color, cl.color, Color.Transparent
                     )
-                ), shape = RectangleShape, alpha = 0.4f)
+                ), shape = RectangleShape, alpha = 0.2f)
             )
         }
     }
@@ -365,7 +366,7 @@ fun DrawMergeTargetBox(
             .size(rowWidth)
             .padding((rowWidth * 0.05f))
             .clip(RoundedCornerShape((rowWidth * 0.1f)))
-            .border(width = (rowWidth * 0.03f), color = b.startBox.border)
+//            .border(width = (rowWidth * 0.03f), color = b.startBox.border)
             .background(color.value),
             contentAlignment = Alignment.Center
         ){
@@ -480,7 +481,7 @@ fun DrawNumBox(
         .size(rowWidth)
         .padding((rowWidth * 0.05f))
         .clip(RoundedCornerShape((rowWidth * 0.1f)))
-        .border(width = (rowWidth * 0.03f), color = numBox.border.copy(alpha = alpha))
+//        .border(width = (rowWidth * 0.03f), color = numBox.border.copy(alpha = alpha))
         .background(numBox.color.copy(alpha = alpha)),
         contentAlignment = Alignment.Center
     ){
@@ -493,6 +494,7 @@ fun DrawNumberText(num : String, rowWidth: Dp, alpha: Float = 1f){
     Text(
         text = num,
         fontSize = rowWidth.value.sp / (num.length).coerceAtLeast(2),
+        fontWeight = FontWeight.ExtraBold,
         color = Color.White.copy(alpha = alpha)
     )
 }
