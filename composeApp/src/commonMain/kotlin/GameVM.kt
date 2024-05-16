@@ -53,65 +53,72 @@ class GameVM : ViewModel() {
 
         lastFrame?.let {  last ->
 
-            if(boxesQueue.size < BOXES_QUEUE_SIZE){
-                fillBoxesQueue()
-            }
-
             val delta = (frameMills - last).toFloat() / 1000
             when(gameState){
 
                 GameState.PLAYING -> {
-
-                    _curNumBox.update {
-                        it?.let {
-                            if(it.scale < 1f){
-                                it.copy(scale = (it.scale + delta * ANIM_SPEED).coerceAtMost(1f))
-                            }
-                            else {
-                                val yPos = it.y + delta * gameSpeed
-                                val isDropped = isBoxDroppedOnBoard(it, yPos)
-                                if(isDropped){
-                                    gameState = GameState.CHECKING
-                                    lastColumn = it.x.toInt()
-                                    null
-                                }
-                                else {
-                                    it.copy(y = yPos)
-                                }
-                            }
-
-                        } ?: getNextBox()
-                    }
+                    onPlayingFrame(delta)
                 }
                 GameState.FALLING -> {
-                    val update = mutableListOf<FallingBox>()
-                    _fallingBoxes.value.forEach {
-                        val yPos = it.y + delta * FALL_SPEED
-                        val isDropped = isBoxDroppedOnBoard(it, yPos)
-                        if(!isDropped) update.add(it.copy(y = yPos))
-                    }
-                    if(update.isEmpty()) gameState = GameState.CHECKING
-
-                    _fallingBoxes.value = update
+                    onFallingBoxesFrame(delta)
                 }
-
                 GameState.MERGING -> {
                     onMergeBoxesFrame(delta)
                 }
-
                 GameState.PAUSED -> {
 
                 }
-
                 GameState.CHECKING -> {
                     checkMatches()
                 }
             }
         }
 
-
         lastFrame = frameMills
     }
+
+
+    private fun onPlayingFrame(delta: Float){
+        if(boxesQueue.size < BOXES_QUEUE_SIZE){
+            fillBoxesQueue()
+        }
+
+        _curNumBox.update {
+
+            it?.let {
+                if(it.scale < 1f){
+                    it.copy(scale = (it.scale + delta * ANIM_SPEED).coerceAtMost(1f))
+                }
+                else {
+                    val yPos = it.y + delta * gameSpeed
+                    val isDropped = isBoxDroppedOnBoard(it, yPos)
+                    if(isDropped){
+                        gameState = GameState.CHECKING
+                        lastColumn = it.x.toInt()
+                        null
+                    }
+                    else {
+                        it.copy(y = yPos)
+                    }
+                }
+
+            } ?: getNextBox()
+        }
+    }
+
+    private fun onFallingBoxesFrame(delta: Float){
+        val update = mutableListOf<FallingBox>()
+        _fallingBoxes.value.forEach {
+            val yPos = it.y + delta * FALL_SPEED
+            val isDropped = isBoxDroppedOnBoard(it, yPos)
+            if(!isDropped) update.add(it.copy(y = yPos))
+        }
+        if(update.isEmpty()) gameState = GameState.CHECKING
+
+        _fallingBoxes.value = update
+    }
+
+
 
     private fun isBoxDroppedOnBoard(box : FallingBox, yPos : Float) : Boolean {
         val xIdx = box.x.toInt()
