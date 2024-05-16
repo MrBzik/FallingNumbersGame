@@ -61,14 +61,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -101,9 +105,40 @@ fun App() {
 
         val animFallDuration = remember { BOARD_HEIGHT * 1000 / FALL_SPEED }
 
-        val windowHeightDp = getWindowHeight()
+//        val windowHeightDp = getWindowHeight()
 
-        val boxesQueue = gameVM.queue
+
+        val boxesQueue = gameVM.boxesQueueState.collectAsState()
+
+
+//        val height = remember { mutableStateOf(0) }
+//        val width = remember { mutableStateOf(0) }
+
+
+//        Layout(
+//            content = {
+//                MyApp(
+//                    height.value, width.value
+//                )
+//            },
+//
+//            modifier = Modifier.fillMaxSize().zIndex(1200f)
+//        )
+//        { measurables: List<Measurable>, constraints: Constraints ->
+//
+//            height.value = constraints.maxHeight
+//            width.value = constraints.maxWidth
+//
+//            val placeables = measurables.map { measurable ->
+//                measurable.measure(constraints)
+//            }
+//            layout(constraints.maxWidth, constraints.maxHeight) {
+//                placeables.forEach { placeable ->
+//                    placeable.place(x = 0, y = 0)
+//                }
+//            }
+//        }
+
 
         LaunchedEffect(Unit){
 
@@ -199,7 +234,7 @@ fun App() {
 
             BoxWithConstraints(
                 modifier = Modifier
-                    .heightIn(max = (windowHeightDp - 200).dp)
+                    .heightIn(max = (561 - 200).dp)
                     .aspectRatio(BOARD_WIDTH / BOARD_HEIGHT.toFloat())
             ) {
 
@@ -334,37 +369,18 @@ fun App() {
 
 @Composable
 fun DrawBoxesQueue(
-    queue: StateFlow<List<NumBox>>
+    queue: State<List<NumBox>>
 ){
 
-    val isAnimate = remember { mutableStateOf(false) }
-
     val offsetX = animateDpAsState(
-        targetValue = if(isAnimate.value) 0.dp else 50.dp,
+        targetValue = if(queue.value.size == BOXES_QUEUE_SIZE) 0.dp else 50.dp,
         animationSpec = tween(
-            durationMillis = if(isAnimate.value) 300 else 0, easing = LinearEasing)
+            durationMillis = if(queue.value.size == BOXES_QUEUE_SIZE) 300 else 0, easing = LinearEasing)
     )
-
-    val boxesQueue = remember { mutableStateOf<List<NumBox>>(emptyList()) }
-
-    LaunchedEffect(Unit){
-
-        queue.collectLatest {
-
-            isAnimate.value = false
-
-            boxesQueue.value = it
-
-            delay(10)
-
-            isAnimate.value = true
-
-        }
-    }
 
 
     Row(
-        modifier = Modifier.offset(x = if(isAnimate.value) offsetX.value else 50.dp)
+        modifier = Modifier.offset(x = offsetX.value)
     ) {
 
         queue.value.forEach {
@@ -548,28 +564,29 @@ fun DrawBoard(
 
 @Composable
 fun DrawCurNum(
-    curNum : State<FallingBox>,
+    curNum : State<FallingBox?>,
     rowWidth : Dp
     ){
 
-    if(curNum.value.numBox != NumBox.NUM_BLANK){
+    curNum.value?.let{ box ->
 
-        if(curNum.value.scale == 1f){
+
+        if(box.scale == 1f){
             DrawNumBox(
-                numBox = curNum.value.numBox,
+                numBox = box.numBox,
                 rowWidth = rowWidth,
-                x = curNum.value.x,
-                y = curNum.value.targetY.toFloat(),
+                x = box.x,
+                y = box.targetY.toFloat(),
                 alpha = 0.2f
             )
         }
 
         DrawNumBox(
-            numBox = curNum.value.numBox,
+            numBox = box.numBox,
             rowWidth = rowWidth,
-            x = curNum.value.x,
-            y = curNum.value.y,
-            scale = curNum.value.scale
+            x = box.x,
+            y = box.y,
+            scale = box.scale
         )
     }
 }
@@ -584,6 +601,7 @@ fun DrawNumBox(
     alpha: Float = 1f,
     scale : Float = 1f
 ){
+
     Box(modifier = Modifier.offset(
         x = (x * rowWidth.value).dp,
         y = (y * rowWidth.value).dp
@@ -609,3 +627,26 @@ fun DrawNumberText(num : String, rowWidth: Dp, alpha: Float = 1f){
         color = Color.White.copy(alpha = alpha)
     )
 }
+
+
+
+//@Composable
+//fun MyApp(
+//    height: Int,
+//    width: Int
+//){
+//
+//    if(height == 0 || width == 0) return
+//
+//
+//    Column(modifier = Modifier.fillMaxSize()) {
+//        Box(modifier = Modifier
+//            .width(width.dp / 2)
+//            .height(height.dp / 2)
+//            .background(Color.Black.copy(alpha = 0.9f)))
+//        Box(modifier = Modifier
+//            .size(10.dp)
+//            .background(Color.Red.copy(alpha = 0.9f)))
+//    }
+//
+//}

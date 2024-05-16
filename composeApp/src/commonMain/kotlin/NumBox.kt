@@ -3,7 +3,6 @@ import androidx.compose.ui.graphics.Color
 
 enum class NumBox(val number: Int, val color: Color, val label: String){
 
-    NUM_BLANK(0, Color.Transparent, ""),
     NUM_2(2, BoxColors.PINK,  "2"),
     NUM_4(4, BoxColors.LIGHT_GREEN,  "4"),
     NUM_8(8, BoxColors.LIGHT_BLUE,  "8"),

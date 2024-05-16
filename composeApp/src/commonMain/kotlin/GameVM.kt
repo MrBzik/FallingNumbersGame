@@ -1,4 +1,3 @@
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
@@ -34,12 +33,12 @@ class GameVM : ViewModel() {
 
     private val checkMatchesStack = Stack<BoxIdx>()
 
-    private val _boxesQueue = ArrayDeque<NumBox>()
-    private val boxesQueue : MutableStateFlow<List<NumBox>> = MutableStateFlow(emptyList())
-    val queue = boxesQueue.asStateFlow()
+    private val boxesQueue = ArrayDeque<NumBox>()
+    private val _boxesQueueState : MutableStateFlow<List<NumBox>> = MutableStateFlow(emptyList())
+    val boxesQueueState = _boxesQueueState.asStateFlow()
 
 
-    private val _curNumBox : MutableStateFlow<FallingBox> = MutableStateFlow(getNextBox())
+    private val _curNumBox : MutableStateFlow<FallingBox?> = MutableStateFlow(null)
     val curNumBox = _curNumBox.asStateFlow()
 
     private val _mergeTargetBox : MutableStateFlow<MergingTargetBox?> = MutableStateFlow(null)
@@ -54,26 +53,34 @@ class GameVM : ViewModel() {
 
         lastFrame?.let {  last ->
 
-            val delta = (frameMills - last).toFloat() / 1000
+            if(boxesQueue.size < BOXES_QUEUE_SIZE){
+                fillBoxesQueue()
+            }
 
+            val delta = (frameMills - last).toFloat() / 1000
             when(gameState){
+
                 GameState.PLAYING -> {
+
                     _curNumBox.update {
-                        if(it.scale < 1f){
-                            it.copy(scale = (it.scale + delta * 8).coerceAtMost(1f))
-                        }
-                        else {
-                            val yPos = it.y + delta * gameSpeed
-                            val isDropped = isBoxDroppedOnBoard(it, yPos)
-                            if(isDropped){
-                                gameState = GameState.CHECKING
-                                lastColumn = it.x.toInt()
-                                it.copy(numBox = NumBox.NUM_BLANK)
+                        it?.let {
+                            if(it.scale < 1f){
+                                it.copy(scale = (it.scale + delta * ANIM_SPEED).coerceAtMost(1f))
                             }
                             else {
-                                it.copy(y = yPos)
+                                val yPos = it.y + delta * gameSpeed
+                                val isDropped = isBoxDroppedOnBoard(it, yPos)
+                                if(isDropped){
+                                    gameState = GameState.CHECKING
+                                    lastColumn = it.x.toInt()
+                                    null
+                                }
+                                else {
+                                    it.copy(y = yPos)
+                                }
                             }
-                        }
+
+                        } ?: getNextBox()
                     }
                 }
                 GameState.FALLING -> {
@@ -105,7 +112,6 @@ class GameVM : ViewModel() {
 
         lastFrame = frameMills
     }
-
 
     private fun isBoxDroppedOnBoard(box : FallingBox, yPos : Float) : Boolean {
         val xIdx = box.x.toInt()
@@ -216,7 +222,6 @@ class GameVM : ViewModel() {
     private fun checkMatches(){
 
         if(checkMatchesStack.isEmpty()){
-            _curNumBox.value = getNextBox()
             gameState = GameState.PLAYING
             return
         }
@@ -334,48 +339,45 @@ class GameVM : ViewModel() {
 
     fun onUserBoardInput(posX: Int, isTap : Boolean){
 
-        if(gameState != GameState.PLAYING) return
+        _curNumBox.value?.let { box ->
 
-        if(!isValidInput(posX)){
-            viewModelScope.launch {
-                _userInputEffects.send(UserInputEffects.InvalidInput)
+            if(!isValidInput(posX, box)){
+                viewModelScope.launch {
+                    _userInputEffects.send(UserInputEffects.InvalidInput)
+                }
+                return
             }
 
-            return
-        }
+            val updatedBox = box.copy(x = posX.toFloat(), targetY = getDepth(posX))
 
-        val updatedBox = _curNumBox.value.copy(x = posX.toFloat(), targetY = getDepth(posX))
-
-        if(isTap){
-            viewModelScope.launch {
-                _userInputEffects.send(
-                    UserInputEffects.ClickHighlight(
-                        col = posX,
-                        color = _curNumBox.value.numBox.color,
-                        id = System.currentTimeMillis()
+            if(isTap){
+                viewModelScope.launch {
+                    _userInputEffects.send(
+                        UserInputEffects.ClickHighlight(
+                            col = posX,
+                            color = box.numBox.color,
+                            id = System.currentTimeMillis()
+                        )
                     )
-                )
-            }
-            gameState = GameState.FALLING
-            _fallingBoxes.value = listOf(updatedBox)
-            _curNumBox.update {
+                }
+                gameState = GameState.FALLING
+                _fallingBoxes.value = listOf(updatedBox)
                 lastColumn = posX
-                it.copy(numBox = NumBox.NUM_BLANK)
+                _curNumBox.value = null
+            } else {
+                _curNumBox.value = updatedBox
             }
-        } else {
-            _curNumBox.value = updatedBox
         }
     }
 
-    private fun isValidInput(posX: Int) : Boolean {
+    private fun isValidInput(posX: Int, curBox: FallingBox) : Boolean {
 
         if(posX < 0 || posX > BOARD_WIDTH - 1) return false
 
-        val oldX = _curNumBox.value.x.toInt()
+        val oldX = curBox.x.toInt()
 
         if(posX != oldX){
-            val yIdx = _curNumBox.value.y.toInt() + 1
-
+            val yIdx = curBox.y.toInt() + 1
             val range = if (posX > oldX) oldX + 1 ..posX
             else oldX - 1 downTo posX
             for(i in range) if(gameBoard[yIdx][i] != null) return false
@@ -386,26 +388,22 @@ class GameVM : ViewModel() {
 
 
     private fun fillBoxesQueue(){
-        while (_boxesQueue.size < 4){
+        while (boxesQueue.size < BOXES_QUEUE_SIZE){
             val numBox = NumBox.entries.filter {
-                it.number in 2..maxNumber
+                it.number < maxNumber
             }.random()
-            _boxesQueue.addLast(numBox)
+            boxesQueue.addLast(numBox)
         }
+
+        _boxesQueueState.value = boxesQueue.toList()
     }
 
 
     private fun getNextBox() : FallingBox {
 
-        if(_boxesQueue.isEmpty()){
-            fillBoxesQueue()
-        }
+        val numBox = boxesQueue.removeFirst()
 
-        val numBox = _boxesQueue.removeFirst()
-
-        fillBoxesQueue()
-
-        boxesQueue.value = _boxesQueue.toList()
+        _boxesQueueState.value = boxesQueue.toList()
 
         val x = lastColumn
         val targetY = getDepth(x)
