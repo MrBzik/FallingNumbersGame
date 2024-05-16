@@ -4,27 +4,32 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.with
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -57,7 +62,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -65,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -96,6 +101,9 @@ fun App() {
 
         val animFallDuration = remember { BOARD_HEIGHT * 1000 / FALL_SPEED }
 
+        val windowHeightDp = getWindowHeight()
+
+        val boxesQueue = gameVM.queue
 
         LaunchedEffect(Unit){
 
@@ -144,19 +152,54 @@ fun App() {
 
 
 
-        Column (modifier = Modifier.fillMaxSize()) {
+        Column (modifier = Modifier
+            .fillMaxSize()
+            .background(Color.DarkGray),
+            verticalArrangement = Arrangement.SpaceEvenly,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
 
-            Box(modifier = Modifier
+            Column(modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
                 .background(Color.DarkGray)
-                .zIndex(666f)
-            )
+                .weight(1f)
+                .zIndex(666f),
+                verticalArrangement = Arrangement.SpaceEvenly
+            ) {
+
+                Text(modifier = Modifier
+                    .align(Alignment.CenterHorizontally),
+                    text = "Score : 6903",
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White.copy(alpha = 0.6f)
+                    )
+
+                Spacer(modifier = Modifier.heightIn(10.dp))
+
+                Row (modifier = Modifier
+                    .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Text(
+                        text = "Next box",
+                        modifier = Modifier.padding(start = 10.dp),
+                        fontSize = 20.sp,
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    DrawBoxesQueue(boxesQueue)
+
+                }
+
+            }
 
             BoxWithConstraints(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .heightIn(max = (windowHeightDp - 200).dp)
                     .aspectRatio(BOARD_WIDTH / BOARD_HEIGHT.toFloat())
             ) {
 
@@ -277,12 +320,65 @@ fun App() {
             }
 
 
-            Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color.DarkGray))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.DarkGray))
+
 
         }
     }
 }
 
+
+@Composable
+fun DrawBoxesQueue(
+    queue: StateFlow<List<NumBox>>
+){
+
+    val isAnimate = remember { mutableStateOf(false) }
+
+    val offsetX = animateDpAsState(
+        targetValue = if(isAnimate.value) 0.dp else 50.dp,
+        animationSpec = tween(
+            durationMillis = if(isAnimate.value) 300 else 0, easing = LinearEasing)
+    )
+
+    val boxesQueue = remember { mutableStateOf<List<NumBox>>(emptyList()) }
+
+    LaunchedEffect(Unit){
+
+        queue.collectLatest {
+
+            isAnimate.value = false
+
+            boxesQueue.value = it
+
+            delay(10)
+
+            isAnimate.value = true
+
+        }
+    }
+
+
+    Row(
+        modifier = Modifier.offset(x = if(isAnimate.value) offsetX.value else 50.dp)
+    ) {
+
+        queue.value.forEach {
+
+            DrawNumBox(
+                numBox = it,
+                x = 0f,
+                y = 0f,
+                rowWidth = 50.dp
+            )
+        }
+    }
+
+}
 
 @Composable
 fun HighlightClicks(

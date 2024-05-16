@@ -1,9 +1,9 @@
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,7 +34,12 @@ class GameVM : ViewModel() {
 
     private val checkMatchesStack = Stack<BoxIdx>()
 
-    private val _curNumBox : MutableStateFlow<FallingBox> = MutableStateFlow(getRandomBox())
+    private val _boxesQueue = ArrayDeque<NumBox>()
+    private val boxesQueue : MutableStateFlow<List<NumBox>> = MutableStateFlow(emptyList())
+    val queue = boxesQueue.asStateFlow()
+
+
+    private val _curNumBox : MutableStateFlow<FallingBox> = MutableStateFlow(getNextBox())
     val curNumBox = _curNumBox.asStateFlow()
 
     private val _mergeTargetBox : MutableStateFlow<MergingTargetBox?> = MutableStateFlow(null)
@@ -42,6 +47,8 @@ class GameVM : ViewModel() {
 
     private val _userInputEffects = Channel<UserInputEffects>()
     val userInputEffects = _userInputEffects.receiveAsFlow()
+
+
 
     fun onNewFrame(frameMills: Long){
 
@@ -209,7 +216,7 @@ class GameVM : ViewModel() {
     private fun checkMatches(){
 
         if(checkMatchesStack.isEmpty()){
-            _curNumBox.value = getRandomBox()
+            _curNumBox.value = getNextBox()
             gameState = GameState.PLAYING
             return
         }
@@ -378,12 +385,27 @@ class GameVM : ViewModel() {
     }
 
 
+    private fun fillBoxesQueue(){
+        while (_boxesQueue.size < 4){
+            val numBox = NumBox.entries.filter {
+                it.number in 2..maxNumber
+            }.random()
+            _boxesQueue.addLast(numBox)
+        }
+    }
 
-    private fun getRandomBox() : FallingBox {
 
-        val numBox = NumBox.entries.filter {
-            it.number in 2..maxNumber
-        }.random()
+    private fun getNextBox() : FallingBox {
+
+        if(_boxesQueue.isEmpty()){
+            fillBoxesQueue()
+        }
+
+        val numBox = _boxesQueue.removeFirst()
+
+        fillBoxesQueue()
+
+        boxesQueue.value = _boxesQueue.toList()
 
         val x = lastColumn
         val targetY = getDepth(x)
@@ -398,3 +420,4 @@ class GameVM : ViewModel() {
 
     }
 }
+
