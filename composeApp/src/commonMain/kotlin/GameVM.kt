@@ -10,7 +10,9 @@ import java.util.Stack
 
 class GameVM : ViewModel() {
 
-    private var gameState = GameState.PLAYING
+    private var gameState = GameState.PAUSED
+    private var lastGameState = GameState.PLAYING
+
     private var maxNumber = 32
     private var lastFrame : Long? = null
 
@@ -37,7 +39,6 @@ class GameVM : ViewModel() {
     private val _boxesQueueState : MutableStateFlow<List<NumBox>> = MutableStateFlow(emptyList())
     val boxesQueueState = _boxesQueueState.asStateFlow()
 
-
     private val _curNumBox : MutableStateFlow<FallingBox?> = MutableStateFlow(null)
     val curNumBox = _curNumBox.asStateFlow()
 
@@ -46,6 +47,10 @@ class GameVM : ViewModel() {
 
     private val _userInputEffects = Channel<UserInputEffects>()
     val userInputEffects = _userInputEffects.receiveAsFlow()
+
+
+    private val _isGamePlaying = MutableStateFlow(false)
+    val isGamePlaying = _isGamePlaying.asStateFlow()
 
 
 
@@ -346,6 +351,8 @@ class GameVM : ViewModel() {
 
     fun onUserBoardInput(posX: Int, isTap : Boolean){
 
+        if(gameState != GameState.PLAYING) return
+
         _curNumBox.value?.let { box ->
 
             if(!isValidInput(posX, box)){
@@ -391,6 +398,21 @@ class GameVM : ViewModel() {
         }
 
         return true
+    }
+
+
+    fun onTogglePlayStop(){
+
+        if(gameState == GameState.PAUSED){
+            gameState = lastGameState
+            _isGamePlaying.value = true
+        }
+        else {
+
+            lastGameState = gameState
+            gameState = GameState.PAUSED
+            _isGamePlaying.value = false
+        }
     }
 
 

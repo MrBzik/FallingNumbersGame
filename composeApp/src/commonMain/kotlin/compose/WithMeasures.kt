@@ -14,7 +14,6 @@ fun WithMeasures(
     modifier: Modifier,
     content: @Composable (widthDp: Int, heightDp: Int) -> Unit
 ){
-
         val density = LocalDensity.current.density
 
         val height = remember { mutableStateOf(0) }
@@ -40,7 +39,4 @@ fun WithMeasures(
                 }
             }
         }
-
 }
-
-

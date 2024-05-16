@@ -34,15 +34,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,6 +88,8 @@ fun DrawGameScreen(){
 
     val clickHighlight : MutableState<UserInputEffects.ClickHighlight?> = mutableStateOf(null)
 
+    val isGamePlaying = gameVM.isGamePlaying.collectAsState()
+
 
     LaunchedEffect(Unit){
         while (true){
@@ -115,8 +121,6 @@ fun DrawGameScreen(){
             }
         }
     }
-
-
 
     fun onUserInput(offset : Offset, isTap: Boolean){
         val x = offset.x / density
@@ -169,20 +173,38 @@ fun DrawGameScreen(){
             }
 
 
-            DrawFooter()
-
+            DrawFooter(
+                isPlaying = isGamePlaying,
+                playStopClick = gameVM::onTogglePlayStop
+            )
         }
     }
 }
 
 
 @Composable
-fun ColumnScope.DrawFooter(){
+fun ColumnScope.DrawFooter(
+    playStopClick : () -> Unit,
+    isPlaying : State<Boolean>
+){
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
-            .background(Color.DarkGray))
+            .background(Color.DarkGray),
+        contentAlignment = Alignment.Center
+        ){
+
+        Button(onClick = playStopClick){
+            Icon(
+                if(isPlaying.value) Icons.Filled.Lock
+                else Icons.Filled.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(60.dp),
+                tint = Color.White.copy(alpha = 0.6f)
+            )
+        }
+    }
 }
 
 
