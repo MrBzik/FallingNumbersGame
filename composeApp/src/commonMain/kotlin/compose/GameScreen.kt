@@ -1,4 +1,14 @@
-
+package compose
+import ANIM_SPEED
+import BG_6
+import BG_7
+import BG_8
+import BG_9
+import BOARD_HEIGHT
+import BOARD_WIDTH
+import BOXES_QUEUE_SIZE
+import FALL_SPEED
+import GameVM
 import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -39,6 +49,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
@@ -67,8 +78,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import compose.CalcRecomposes
-import compose.WithMeasures
+import collectAsStateSafely
+import entities.FallingBox
+import entities.MergingBox
+import entities.MergingTargetBox
+import entities.NumBox
+import entities.UserInputEffects
+import entities.bronze
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -180,7 +196,8 @@ fun DrawGameScreen(){
 
             DrawFooter(
                 isPlaying = isGamePlaying,
-                playStopClick = gameVM::onTogglePlayStop
+                playStopClick = gameVM::onTogglePlayStop,
+                save = gameVM::save
             )
         }
     }
@@ -190,24 +207,41 @@ fun DrawGameScreen(){
 @Composable
 fun ColumnScope.DrawFooter(
     playStopClick : () -> Unit,
-    isPlaying : State<Boolean>
+    isPlaying : State<Boolean>,
+    save: () -> Unit
 ){
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
-            .background(Color.DarkGray),
-        contentAlignment = Alignment.Center
+            .background(Color.DarkGray)
         ){
 
-        Button(onClick = playStopClick){
-            Icon(
-                if(isPlaying.value) Icons.Filled.Lock
-                else Icons.Filled.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(60.dp),
-                tint = Color.White.copy(alpha = 0.6f)
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Button(onClick = playStopClick){
+                Icon(
+                    if(isPlaying.value) Icons.Filled.Lock
+                    else Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp),
+                    tint = Color.White.copy(alpha = 0.6f)
+                )
+            }
+
+            Button(onClick = save){
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp),
+                    tint = Color.White.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }

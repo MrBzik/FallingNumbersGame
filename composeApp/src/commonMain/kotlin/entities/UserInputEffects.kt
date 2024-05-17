@@ -1,3 +1,5 @@
+package entities
+
 import androidx.compose.ui.graphics.Color
 
 sealed class UserInputEffects {

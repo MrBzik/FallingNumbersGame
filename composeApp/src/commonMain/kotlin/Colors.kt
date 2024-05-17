@@ -1,5 +1,16 @@
 import androidx.compose.ui.graphics.Color
 
+val Purple200 = Color(0xFFBB86FC)
+val Purple500 = Color(0xFF6200EE)
+val Purple700 = Color(0xFF3700B3)
+val Teal200 = Color(0xFF03DAC5)
+val Flower = Color(0xFF4CAF50)
+val Deer = Color(0xFFFF5722)
+val Mango = Color(0xFFFF9800)
+val AppbarColor = Color(0xFF2196F3)
+
+
+
 val BG_1 = Color(162,162,216)
 val BG_2 = Color(187,179,236)
 val BG_3 = Color(192,225,192)
@@ -29,12 +40,4 @@ object BoxColors{
     val LIGHT_GREEN = Color(95, 141, 78)
     val DARK_ORANGE = Color(0xffd9660a)
 
-
-
 }
-
-
-
-
-
-

@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsCompose)
+    alias(libs.plugins.kotlin.serialization)
+//    alias(libs.plugins.parcelable)
 }
 
 kotlin {
@@ -35,10 +37,12 @@ kotlin {
             implementation(libs.androidx.viewmodel)
             implementation(libs.androidx.viewmodel.compose)
             implementation(libs.androidx.lifecycle.compose)
+            implementation(libs.kotlin.serialization)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
         }
+
     }
 }
 

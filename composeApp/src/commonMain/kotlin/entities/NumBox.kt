@@ -1,3 +1,6 @@
+package entities
+
+import BoxColors
 import androidx.compose.ui.graphics.Color
 
 

@@ -1,27 +1,38 @@
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import data.SaveFile
+import entities.BoxIdx
+import entities.FallingBox
+import entities.GameState
+import entities.MergingBox
+import entities.MergingTargetBox
+import entities.NumBox
+import entities.UserInputEffects
+import entities.Vector
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.Stack
 
 class GameVM : ViewModel() {
 
+
     private var gameState = GameState.PAUSED
     private var lastGameState = GameState.PLAYING
-
+    private var gameSpeed = 0.5f
+    private var minNumber = 2
     private var maxNumber = 32
     private var lastFrame : Long? = null
-
-    private var gameSpeed = 0.5f
 
     private var lastColumn = BOARD_WIDTH / 2
 
     private val gameBoard : Array<Array<NumBox?>> = Array(BOARD_HEIGHT){ Array(BOARD_WIDTH) { null } }
-
     private val _board : MutableStateFlow<Array<Array<NumBox?>>> = MutableStateFlow(
         gameBoard
     )
@@ -54,6 +65,41 @@ class GameVM : ViewModel() {
 
     private val _gameScore = MutableStateFlow(0)
     val gameScore = _gameScore.asStateFlow()
+
+
+    fun save(){
+
+        _curNumBox.value?.let {
+
+            val saveFile = SaveFile(gameBoard)
+
+            val que = Stack<Int>()
+
+
+            val json = Json.encodeToString(que)
+
+            println(json)
+
+
+//            File("src/commonMain/savegame/save.text").bufferedWriter().use { out ->
+//                out.write(json)
+//            }
+//
+//            File("src/commonMain/savegame/save.text").bufferedReader().use {  reader ->
+//                val box = Json.decodeFromString<FallingBox>(reader.readLine())
+//                println("write and read box : ${box.numBox.number}")
+//            }
+        }
+
+
+        val name = "John"
+
+        val bytes = name.encodeToByteArray()
+
+
+
+    }
+
 
 
     fun onNewFrame(frameMills: Long){
@@ -92,9 +138,12 @@ class GameVM : ViewModel() {
 
         _curNumBox.update {
 
-            it?.let {
+            if(it == null) {
+                getNextBox()
+            } else {
                 if(it.scale < 1f){
-                    it.copy(scale = (it.scale + delta * ANIM_SPEED).coerceAtMost(1f))
+                    it.copy(scale = (it.scale + delta * ANIM_SPEED)
+                        .coerceAtMost(1f))
                 }
                 else {
                     val yPos = it.y + delta * gameSpeed
@@ -108,8 +157,7 @@ class GameVM : ViewModel() {
                         it.copy(y = yPos)
                     }
                 }
-
-            } ?: getNextBox()
+            }
         }
     }
 
@@ -277,7 +325,8 @@ class GameVM : ViewModel() {
                         vector = vector,
                         targetX = x.toFloat(),
                         targetY = y.toFloat()
-                    ))
+                    )
+                    )
                     gameBoard[yIdx][xIdx] = null
 
                     val startIdx = if(vector == Vector.UP) yIdx - 2 else yIdx - 1
@@ -288,12 +337,14 @@ class GameVM : ViewModel() {
 
                         gameBoard[i][xIdx] = null
 
-                        fallingBoxes.add(FallingBox(
+                        fallingBoxes.add(
+                            FallingBox(
                             numBox = numB,
                             x = xIdx.toFloat(),
                             y = i.toFloat(),
                             targetY = i + 1
-                        ))
+                        )
+                        )
                     }
                 }
             }
@@ -423,7 +474,7 @@ class GameVM : ViewModel() {
     private fun fillBoxesQueue(){
         while (boxesQueue.size < BOXES_QUEUE_SIZE){
             val numBox = NumBox.entries.filter {
-                it.number < maxNumber
+                it.number in minNumber..maxNumber
             }.random()
             boxesQueue.addLast(numBox)
         }

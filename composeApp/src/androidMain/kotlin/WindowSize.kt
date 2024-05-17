@@ -1,10 +1,6 @@
-import android.view.WindowMetrics
+
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 actual fun getWindowHeight() : Int {
@@ -18,3 +14,5 @@ actual fun getWindowHeight() : Int {
 
     return LocalConfiguration.current.screenHeightDp
 }
+
+
