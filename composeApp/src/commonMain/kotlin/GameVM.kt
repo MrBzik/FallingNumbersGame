@@ -48,10 +48,12 @@ class GameVM : ViewModel() {
     private val _userInputEffects = Channel<UserInputEffects>()
     val userInputEffects = _userInputEffects.receiveAsFlow()
 
-
     private val _isGamePlaying = MutableStateFlow(false)
     val isGamePlaying = _isGamePlaying.asStateFlow()
 
+
+    private val _gameScore = MutableStateFlow(0)
+    val gameScore = _gameScore.asStateFlow()
 
 
     fun onNewFrame(frameMills: Long){
@@ -193,8 +195,6 @@ class GameVM : ViewModel() {
 
     private fun passMergedBoxForward(){
 
-        println("end: ${System.currentTimeMillis()}")
-
         _mergeTargetBox.update {
 
             it?.let { target ->
@@ -208,6 +208,11 @@ class GameVM : ViewModel() {
                         targetY = getDepth(target.x.toInt())
                     )
                 }
+
+                _gameScore.update {  prevScore ->
+                    prevScore + target.targetBox.number
+                }
+
             }
 
             null
@@ -245,7 +250,6 @@ class GameVM : ViewModel() {
             val isMatchFound = onNumberDropped(check.row, check.col)
 
             if(isMatchFound) {
-                println("str: ${System.currentTimeMillis()}")
                 gameState = GameState.MERGING
                 break
             }

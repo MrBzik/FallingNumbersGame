@@ -80,6 +80,8 @@ fun DrawGameScreen(){
 
     val boxesQueue = gameVM.boxesQueueState.collectAsStateSafely()
 
+    val gameScore = gameVM.gameScore.collectAsStateSafely()
+
     val density = LocalDensity.current.density
 
     var boardWidth : Dp = 0.dp
@@ -138,7 +140,10 @@ fun DrawGameScreen(){
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            DrawHeader(boxesQueue)
+            DrawHeader(
+                gameScore = gameScore,
+                boxesQueue = boxesQueue
+            )
 
             BoxWithConstraints(
                 modifier = Modifier
@@ -333,6 +338,7 @@ fun DrawBoardBG(
 
 @Composable
 fun ColumnScope.DrawHeader(
+    gameScore : State<Int>,
     boxesQueue: State<List<NumBox>>
 ){
     Column(modifier = Modifier
@@ -345,7 +351,7 @@ fun ColumnScope.DrawHeader(
 
         Text(modifier = Modifier
             .align(Alignment.CenterHorizontally),
-            text = "Score : 6903",
+            text = "Score : ${gameScore.value}",
             fontSize = 30.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White.copy(alpha = 0.6f)
